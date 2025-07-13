@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/user.model";
 import verificationTokenModel from "../models/verificationToken.model";
 import sendEmail from "../utils/sendEmail";
+import tokenBlacklistModel from "../models/tokenBlacklist.model";
 
 export async function getAllUsers(_req: Request, res: Response) {
   try {
@@ -133,5 +134,22 @@ export async function verifyUserByCode(req: Request, res: Response) {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Verification failed" });
+  }
+}
+
+export async function logoutUser(req: Request, res: Response) {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(400).json({ message: "No token provided" });
+
+  try {
+    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+    await tokenBlacklistModel.create({
+      token,
+      expiresAt: new Date(decoded.exp * 1000),
+    });
+
+    res.status(200).json({ message: "Logout successful" });
+  } catch (err) {
+    res.status(401).json({ message: "Invalid or expired token" });
   }
 }
